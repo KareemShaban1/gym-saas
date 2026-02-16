@@ -4,6 +4,37 @@ This guide covers deploying the **React frontend** and **Laravel API** using aaP
 
 ---
 
+## Single Git repo: frontend and gymflow-api in the same location
+
+The project is one Git repo with this structure:
+
+```
+your-repo/                 ← clone this once on the server
+├── src/                   ← React app source
+├── public/
+├── package.json
+├── vite.config.ts
+├── dist/                  ← created by npm run build (frontend build output)
+├── gymflow-api/           ← Laravel API
+│   ├── app/
+│   ├── config/
+│   ├── public/            ← Laravel document root
+│   ├── .env
+│   └── ...
+└── ...
+```
+
+**Idea:** Clone the repo **once** into one directory. Then in aaPanel you create **two sites** that point into that same directory:
+
+| Site | Domain example | Site root (in aaPanel) | Document / run directory |
+|------|----------------|------------------------|----------------------------|
+| Frontend | `yourdomain.com` | `/www/wwwroot/yourdomain.com` (repo root) | `dist` |
+| API | `api.yourdomain.com` | `/www/wwwroot/yourdomain.com/gymflow-api` | `public` |
+
+So both frontend and API are served from the **same repo path**; only the “run directory” differs.
+
+---
+
 ## Prerequisites
 
 - A VPS or dedicated server (Ubuntu 20.04/22.04 or CentOS 7/8 recommended)
@@ -49,53 +80,60 @@ In aaPanel: **App Store → PHP 8.2 → Set up → Install extensions**:
 
 ---
 
-## Part 2: Deploy Laravel API (gymflow-api)
+## Part 2: Clone repo and create both sites (single repo)
 
-### 2.1 Add site in aaPanel
+### 2.1 Clone the Git repo once
 
-1. **Website → Add site**
-2. Domain: `api.yourdomain.com` (or your API domain)
-3. PHP version: **PHP-82**
-4. Database: optionally link the database you created
-5. Create and note the **site root** path, e.g. `/www/wwwroot/api.yourdomain.com`
-
-### 2.2 Upload Laravel files
-
-Upload the contents of the **gymflow-api** folder so that the Laravel app lives in the site root. The **document root** must point to the `public` folder (see Nginx config below).
-
-Recommended layout:
-
-- Site root: `/www/wwwroot/api.yourdomain.com`
-- Put Laravel here so you have: `/www/wwwroot/api.yourdomain.com/public/index.php`,  
-  i.e. upload the **contents** of `gymflow-api` (app, bootstrap, config, public, etc.) into `/www/wwwroot/api.yourdomain.com/`.
-
-So:
-
-- `/www/wwwroot/api.yourdomain.com/app/`
-- `/www/wwwroot/api.yourdomain.com/bootstrap/`
-- `/www/wwwroot/api.yourdomain.com/config/`
-- `/www/wwwroot/api.yourdomain.com/public/`  ← this will be the document root
-- etc.
-
-### 2.3 Set document root to `public`
-
-In aaPanel: **Website → your site (api.yourdomain.com) → Set up → Site directory**:
-
-- Set **run directory** / **document root** to: **`/public`** (relative to site root)  
-  so the site runs from `.../api.yourdomain.com/public`.
-
-If you use **Nginx**, the root should look like:
-
-```nginx
-root /www/wwwroot/api.yourdomain.com/public;
-```
-
-### 2.4 Environment and dependencies (SSH)
-
-SSH into the server and go to the Laravel path (parent of `public`):
+SSH into the server. Create one directory for the app and clone your repo into it. Use the **frontend domain** as the folder name so the frontend site root is the repo root:
 
 ```bash
-cd /www/wwwroot/api.yourdomain.com
+cd /www/wwwroot
+git clone https://github.com/your-username/your-repo.git yourdomain.com
+cd yourdomain.com
+```
+
+You should see `gymflow-api/`, `package.json`, `src/`, etc. in `/www/wwwroot/yourdomain.com/`.
+
+### 2.2 Add the **API** site in aaPanel
+
+1. **Website → Add site**
+2. Domain: `api.yourdomain.com`
+3. **Site root (path):** `/www/wwwroot/yourdomain.com/gymflow-api`  
+   (Do **not** use a separate folder like `/www/wwwroot/api.yourdomain.com` – we point to the repo’s `gymflow-api` folder.)
+4. PHP version: **PHP-82**
+5. Create the site.
+
+Then set the **run directory** so the web root is Laravel’s `public`:
+
+- **Website → api.yourdomain.com → Set up → Site directory**
+- Set **run directory** / **document root** to: **`public`**  
+  So Nginx uses: `/www/wwwroot/yourdomain.com/gymflow-api/public`.
+
+### 2.3 Add the **frontend** site in aaPanel
+
+1. **Website → Add site**
+2. Domain: `yourdomain.com`
+3. **Site root (path):** `/www/wwwroot/yourdomain.com` (the repo root).
+4. Create the site.
+
+Then set the **run directory** to the built frontend:
+
+- **Website → yourdomain.com → Set up → Site directory**
+- Set **run directory** to: **`dist`**  
+  (You will build the frontend so that `dist/` contains `index.html` and assets; see Part 4.)
+
+So after a build, Nginx will serve from `/www/wwwroot/yourdomain.com/dist`.
+
+---
+
+## Part 3: Deploy Laravel API (gymflow-api)
+
+### 3.1 Environment and dependencies (SSH)
+
+SSH into the server and go to the **Laravel** folder (inside the repo):
+
+```bash
+cd /www/wwwroot/yourdomain.com/gymflow-api
 ```
 
 Then:
@@ -133,10 +171,10 @@ php artisan route:cache
 
 (If you use seeders: `php artisan db:seed --force`.)
 
-### 2.5 Permissions
+### 3.2 Permissions
 
 ```bash
-cd /www/wwwroot/api.yourdomain.com
+cd /www/wwwroot/yourdomain.com/gymflow-api
 chown -R www:www storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 ```
@@ -148,7 +186,7 @@ chmod -R 775 storage bootstrap/cache
 In aaPanel, **Website → api.yourdomain.com → Set up → Config file** (or Nginx config). Ensure the `location /` block uses Laravel’s `public` and try_files:
 
 ```nginx
-root /www/wwwroot/api.yourdomain.com/public;
+root /www/wwwroot/yourdomain.com/gymflow-api/public;
 index index.php;
 
 location / {
@@ -167,62 +205,37 @@ Apply and reload Nginx.
 
 ---
 
-## Part 3: Deploy React Frontend
+## Part 4: Deploy React Frontend (same repo)
 
-### 3.1 Build the frontend (with API URL)
+The frontend site already uses the repo root with run directory **dist**. You only need to build so that `dist/` exists.
 
-On your **local machine** (or on the server if Node is installed):
+### 4.1 Build on the server (recommended after git pull)
 
-```bash
-cd /path/to/gym   # project root (where package.json is)
-npm ci
-# Set your production API URL (no trailing slash; /api is added by the app)
-export VITE_API_URL=https://api.yourdomain.com/api
-npm run build
-```
-
-This creates the **dist** folder.
-
-### 3.2 Add frontend site in aaPanel
-
-1. **Website → Add site**
-2. Domain: `yourdomain.com` (or `app.yourdomain.com`)
-3. You can set PHP to “Static” or leave it; we’ll serve static files only.
-4. Site root: e.g. `/www/wwwroot/yourdomain.com`
-
-### 3.3 Upload frontend build
-
-Upload **all contents** of the **dist** folder into the site root, e.g.:
-
-- `/www/wwwroot/yourdomain.com/index.html`
-- `/www/wwwroot/yourdomain.com/assets/`
-- etc.
-
-So the browser opens `https://yourdomain.com` and loads `index.html` and assets from there.
-
-### 3.4 (Optional) Build on server with Node
-
-If you prefer to build on the server:
+SSH in, go to the **repo root** (where `package.json` and `gymflow-api/` are), then:
 
 ```bash
 cd /www/wwwroot/yourdomain.com
-# Upload source (e.g. git clone or upload zip of frontend)
 npm ci
 export VITE_API_URL=https://api.yourdomain.com/api
 npm run build
-# Then move dist/* to document root and optionally remove node_modules and source
 ```
+
+This creates or updates **dist/** with `index.html` and assets. The site run directory is already `dist`, so no copy step.
+
+### 4.2 Build locally and upload (alternative)
+
+If you don't run Node on the server: build on your machine with `VITE_API_URL=https://api.yourdomain.com/api npm run build`, then upload the contents of **dist/** to `/www/wwwroot/yourdomain.com/dist/` (create `dist` if needed).
 
 ---
 
-## Part 4: CORS and security
+## Part 5: CORS and security
 
-### 4.1 Laravel CORS
+### 5.1 Laravel CORS
 
 On the server, edit Laravel’s CORS config:
 
 ```bash
-nano /www/wwwroot/api.yourdomain.com/config/cors.php
+nano /www/wwwroot/yourdomain.com/gymflow-api/config/cors.php
 ```
 
 Add your frontend origin to `allowed_origins`:
@@ -238,32 +251,57 @@ Add your frontend origin to `allowed_origins`:
 Then:
 
 ```bash
-cd /www/wwwroot/api.yourdomain.com
+cd /www/wwwroot/yourdomain.com/gymflow-api
 php artisan config:cache
 ```
 
-### 4.2 HTTPS
+### 5.2 HTTPS
 
 In aaPanel for both sites: **Website → your site → SSL**. Use **Let’s Encrypt** and force HTTPS so the frontend and API both run over `https://`.
 
 ---
 
-## Part 5: Quick checklist
+## Part 6: Quick checklist (single repo)
 
 | Step | Where | Action |
 |------|--------|--------|
 | 1 | aaPanel | Install Nginx, PHP 8.2+, MySQL, Node (for build) |
 | 2 | aaPanel | Install PHP extensions required by Laravel |
 | 3 | aaPanel | Create database and user |
-| 4 | aaPanel | Add site for API → document root = `public` |
-| 5 | Server | Upload Laravel (gymflow-api) into API site root |
-| 6 | Server | `.env`, `composer install`, `artisan key:generate`, `migrate`, cache |
-| 7 | Server | Permissions: `storage`, `bootstrap/cache` → www:www, 775 |
-| 8 | aaPanel | Add site for frontend |
-| 9 | Local/Server | Build frontend with `VITE_API_URL=https://api.yourdomain.com/api` |
-| 10 | Server | Upload `dist/*` to frontend site root |
-| 11 | Laravel | Update `config/cors.php` with frontend domain |
-| 12 | aaPanel | Enable SSL for both sites |
+| 4 | Server | Clone Git repo once to e.g. `/www/wwwroot/yourdomain.com` |
+| 5 | aaPanel | Add site for API: root = `.../yourdomain.com/gymflow-api`, run dir = `public` |
+| 6 | aaPanel | Add site for frontend: root = `.../yourdomain.com`, run dir = `dist` |
+| 7 | Server | In `gymflow-api/`: `.env`, `composer install`, `artisan key:generate`, `migrate`, cache |
+| 8 | Server | Permissions on `gymflow-api/storage` and `gymflow-api/bootstrap/cache` |
+| 9 | Server | In repo root: `npm ci`, `VITE_API_URL=... npm run build` (or build locally and upload `dist/`) |
+| 10 | Laravel | Update `config/cors.php` with frontend domain |
+| 11 | aaPanel | Enable SSL for both sites |
+
+---
+
+## Updating the app (single repo)
+
+After you pull new code from Git:
+
+```bash
+cd /www/wwwroot/yourdomain.com
+git pull
+
+# Backend: run migrations and clear caches
+cd gymflow-api
+composer install --optimize-autoloader --no-dev
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+cd ..
+
+# Frontend: rebuild and serve from dist
+npm ci
+export VITE_API_URL=https://api.yourdomain.com/api
+npm run build
+```
+
+No need to change aaPanel site roots; both sites keep pointing at the same repo.
 
 ---
 
