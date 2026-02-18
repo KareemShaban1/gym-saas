@@ -8,6 +8,7 @@ import {
   Dumbbell,
   User,
   LogOut,
+  TrendingUp,
 } from "lucide-react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Home", path: "/member" },
   { icon: CalendarCheck, label: "Attendance", path: "/member/attendance" },
   { icon: Dumbbell, label: "Workouts", path: "/member/workouts" },
+  { icon: TrendingUp, label: "Progress", path: "/member/progress" },
   { icon: MessageCircle, label: "Chat", path: "/member/chat" },
   { icon: CreditCard, label: "Payments", path: "/member/payments" },
 ];

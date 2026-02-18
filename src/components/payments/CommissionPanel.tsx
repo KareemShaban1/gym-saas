@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { CommissionRecord } from "@/data/trainers";
 import { format } from "date-fns";
 
@@ -16,7 +17,17 @@ const typeColors: Record<string, string> = {
 };
 
 const CommissionPanel = ({ commissions }: Props) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const sorted = useMemo(() => [...commissions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [commissions]);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sorted.slice(startIndex, startIndex + itemsPerPage);
+  }, [sorted, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
   const totalPaid = useMemo(() => commissions.filter(c => c.status === "paid").reduce((s, c) => s + c.amount, 0), [commissions]);
   const totalPending = useMemo(() => commissions.filter(c => c.status === "pending").reduce((s, c) => s + c.amount, 0), [commissions]);
@@ -55,7 +66,7 @@ const CommissionPanel = ({ commissions }: Props) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map(c => (
+              {paginatedData.map(c => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.trainerName ?? `Trainer #${c.trainerId}`}</TableCell>
                   <TableCell>{c.memberName}</TableCell>
@@ -71,8 +82,45 @@ const CommissionPanel = ({ commissions }: Props) => {
                   <TableCell className="text-muted-foreground">{format(new Date(c.date), "dd MMM yyyy")}</TableCell>
                 </TableRow>
               ))}
+              {paginatedData.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No commissions found.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sorted.length)} of {sorted.length} commissions
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Expense extends Model
 {
     protected $fillable = [
-        'gym_id', 'title', 'category', 'amount', 'date', 'note',
+        'gym_id', 'category_id', 'title', 'category', 'amount', 'date', 'note',
     ];
 
     protected function casts(): array
@@ -22,5 +22,10 @@ class Expense extends Model
     public function gym(): BelongsTo
     {
         return $this->belongsTo(Gym::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'category_id');
     }
 }

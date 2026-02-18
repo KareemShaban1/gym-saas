@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MemberAuthProvider } from "@/contexts/MemberAuthContext";
+import { TrainerAuthProvider } from "@/contexts/TrainerAuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DashboardErrorBoundary from "@/components/DashboardErrorBoundary";
 import MemberProtectedRoute from "@/components/member/MemberProtectedRoute";
 import MemberLayout from "@/components/member/MemberLayout";
 import Index from "./pages/Index";
@@ -14,6 +16,9 @@ import LoginPage from "./pages/LoginPage";
 import RegisterGymPage from "./pages/RegisterGymPage";
 import DashboardOverview from "./pages/DashboardOverview";
 import MembersPage from "./pages/MembersPage";
+import UsersPage from "./pages/UsersPage";
+import RolesPage from "./pages/RolesPage";
+import MemberProgressPage from "./pages/MemberProgressPage";
 import AttendancePage from "./pages/AttendancePage";
 import TrainersPage from "./pages/TrainersPage";
 import WorkoutsPage from "./pages/WorkoutsPage";
@@ -36,6 +41,20 @@ import MemberChatPage from "./pages/member/MemberChatPage";
 import MemberChatThreadPage from "./pages/member/MemberChatThreadPage";
 import MemberPaymentsPage from "./pages/member/MemberPaymentsPage";
 import MemberProfilePage from "./pages/member/MemberProfilePage";
+import MemberPortalProgressPage from "./pages/member/MemberProgressPage";
+import TrainerLoginPage from "./pages/trainer/TrainerLoginPage";
+import TrainerRegisterPage from "./pages/trainer/TrainerRegisterPage";
+import TrainerLayout from "./components/trainer/TrainerLayout";
+import TrainerProtectedRoute from "./components/trainer/TrainerProtectedRoute";
+import TrainerDashboard from "./pages/trainer/TrainerDashboard";
+import TrainerMembersPage from "./pages/trainer/TrainerMembersPage";
+import TrainerWorkoutsPage from "./pages/trainer/TrainerWorkoutsPage";
+import TrainerWorkoutNewPage from "./pages/trainer/TrainerWorkoutNewPage";
+import TrainerWorkoutDetailPage from "./pages/trainer/TrainerWorkoutDetailPage";
+import TrainerExercisesPage from "./pages/trainer/TrainerExercisesPage";
+import TrainerReportsPage from "./pages/trainer/TrainerReportsPage";
+import TrainerProfilePage from "./pages/trainer/TrainerProfilePage";
+import TrainerMemberProgressPage from "./pages/trainer/TrainerMemberProgressPage";
 
 const queryClient = new QueryClient();
 
@@ -50,8 +69,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register-gym" element={<RegisterGymPage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardOverview /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardErrorBoundary><DashboardOverview /></DashboardErrorBoundary></ProtectedRoute>} />
             <Route path="/dashboard/members" element={<ProtectedRoute><MembersPage /></ProtectedRoute>} />
+            <Route path="/dashboard/members/:memberId/progress" element={<ProtectedRoute><MemberProgressPage /></ProtectedRoute>} />
             <Route path="/dashboard/trainers" element={<ProtectedRoute><TrainersPage /></ProtectedRoute>} />
             <Route path="/dashboard/workouts" element={<ProtectedRoute><WorkoutsPage /></ProtectedRoute>} />
             <Route path="/dashboard/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
@@ -59,6 +79,8 @@ const App = () => (
             <Route path="/dashboard/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="/dashboard/branches" element={<ProtectedRoute><BranchesPage /></ProtectedRoute>} />
             <Route path="/dashboard/plans" element={<ProtectedRoute><GymPlansPage /></ProtectedRoute>} />
+            <Route path="/dashboard/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+            <Route path="/dashboard/roles" element={<ProtectedRoute><RolesPage /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/super-admin" element={<ProtectedRoute requireSuperAdmin><SuperAdminDashboard /></ProtectedRoute>} />
             <Route path="/super-admin/gyms" element={<ProtectedRoute requireSuperAdmin><GymsPage /></ProtectedRoute>} />
@@ -72,10 +94,26 @@ const App = () => (
                 <Route path="attendance" element={<MemberAttendancePage />} />
                 <Route path="workouts" element={<MemberWorkoutsPage />} />
                 <Route path="workouts/:id" element={<MemberWorkoutDetailPage />} />
+                <Route path="progress" element={<MemberPortalProgressPage />} />
                 <Route path="chat" element={<MemberChatPage />} />
                 <Route path="chat/:trainerId" element={<MemberChatThreadPage />} />
                 <Route path="payments" element={<MemberPaymentsPage />} />
                 <Route path="profile" element={<MemberProfilePage />} />
+              </Route>
+            </Route>
+            <Route path="/trainer" element={<TrainerAuthProvider><Outlet /></TrainerAuthProvider>}>
+              <Route path="login" element={<TrainerLoginPage />} />
+              <Route path="register" element={<TrainerRegisterPage />} />
+              <Route element={<TrainerProtectedRoute><TrainerLayout /></TrainerProtectedRoute>}>
+                <Route index element={<TrainerDashboard />} />
+                <Route path="members" element={<TrainerMembersPage />} />
+                <Route path="members/:memberId/progress" element={<TrainerMemberProgressPage />} />
+                <Route path="workouts" element={<TrainerWorkoutsPage />} />
+                <Route path="workouts/new" element={<TrainerWorkoutNewPage />} />
+                <Route path="workouts/:id" element={<TrainerWorkoutDetailPage />} />
+                <Route path="exercises" element={<TrainerExercisesPage />} />
+                <Route path="reports" element={<TrainerReportsPage />} />
+                <Route path="profile" element={<TrainerProfilePage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

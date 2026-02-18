@@ -27,6 +27,11 @@ class AuthController extends Controller
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
+        if ($user->isGymAdmin() && ! $user->gym_id) {
+            throw ValidationException::withMessages([
+                'email' => ['Your account is not linked to a gym. Please contact support.'],
+            ]);
+        }
         $token = $user->createToken('gymflow-dashboard')->plainTextToken;
         $payload = [
             'user' => $user,

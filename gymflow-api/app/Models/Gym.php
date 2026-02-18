@@ -35,6 +35,16 @@ class Gym extends Model
         return $this->hasMany(User::class, 'gym_id');
     }
 
+    public function roles(): HasMany
+    {
+        return $this->hasMany(Role::class, 'gym_id');
+    }
+
+    public function expenseCategories(): HasMany
+    {
+        return $this->hasMany(ExpenseCategory::class, 'gym_id');
+    }
+
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class, 'gym_id');

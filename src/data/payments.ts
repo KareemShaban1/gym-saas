@@ -1,6 +1,6 @@
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "mobile_wallet";
 export type PaymentCategory = "subscription" | "coin_purchase" | "personal_training" | "supplement" | "merchandise" | "other";
-export type ExpenseCategory = "rent" | "utilities" | "equipment" | "maintenance" | "marketing" | "supplies" | "other";
+export type ExpenseCategory = "rent" | "utilities" | "equipment" | "maintenance" | "marketing" | "supplies" | "other"; // Legacy type
 
 export interface Payment {
   id: number;
@@ -15,7 +15,9 @@ export interface Payment {
 export interface Expense {
   id: number;
   title: string;
-  category: ExpenseCategory;
+  categoryId?: number | null;
+  categoryObj?: { id: number; name: string; slug: string; color?: string | null } | null; // Dynamic category from API
+  category?: ExpenseCategory; // Legacy fallback for display
   amount: number;
   date: string;
   note?: string;

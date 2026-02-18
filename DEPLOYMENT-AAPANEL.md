@@ -311,5 +311,45 @@ No need to change aaPanel site roots; both sites keep pointing at the same repo.
 - **500 from Laravel**: Set `APP_DEBUG=true` temporarily, run `php artisan config:clear` and check `storage/logs/laravel.log`.
 - **API calls fail from frontend**: Confirm `VITE_API_URL` used at build time, CORS origin, and that both sites use HTTPS if the frontend is HTTPS.
 - **Routes not found (404)**: Ensure document root is `public` and Nginx has `try_files $uri $uri/ /index.php?$query_string;` for the API site.
+- **"Expected a JavaScript module script but the server responded with a MIME type of application/octet-stream"**: The frontend site is serving `.js`/`.mjs` with the wrong MIME type. Fix it by adding MIME types for the **frontend** site in aaPanel (see below).
+
+---
+
+## Fix: Frontend MIME type (application/octet-stream)
+
+If the browser shows *"Expected a JavaScript module script but the server responded with a MIME type of application/octet-stream"*, Nginx is not sending the correct `Content-Type` for JavaScript files.
+
+**In aaPanel:** open **Website → your frontend site (e.g. gym.kareemsoft.org) → Set up → Config file** (Nginx). In the **server { ... }** block for this site, ensure you have:
+
+1. **Include MIME types** near the top of the `server` block (if not already present):
+
+```nginx
+server {
+    include mime.types;   # add this if missing
+    default_type application/octet-stream;   # remove this line if present, or keep only if mime.types is included
+
+    root /www/wwwroot/gym.kareemsoft.org/dist;   # your frontend run directory
+    index index.html;
+    server_name gym.kareemsoft.org;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    # ... rest of config (SSL, etc.)
+}
+```
+
+2. If your config already has `default_type application/octet-stream;` **without** `include mime.types;`, then Nginx falls back to octet-stream for unknown extensions. Either:
+   - Add **`include mime.types;`** inside this server block (so `.js` and `.mjs` get `application/javascript`), or  
+   - Add explicit types in this server block:
+
+```nginx
+types {
+    application/javascript js mjs;
+    text/css css;
+}
+```
+
+Then **reload Nginx** (aaPanel: Nginx → Reload, or run `nginx -s reload`).
 
 Replace `yourdomain.com` and `api.yourdomain.com` with your real domains everywhere.

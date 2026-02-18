@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\MemberDietLog;
+use App\Models\MemberExerciseLog;
 use App\Models\MemberMessage;
 use App\Models\Payment;
 use App\Models\WorkoutPlan;
@@ -107,6 +109,35 @@ class MemberPortalController extends Controller
         $member = $request->user();
         $workout = WorkoutPlan::where('trainee_id', $member->id)->where('id', $id)->firstOrFail();
         return $workout->load('trainer');
+    }
+
+    /**
+     * My diet logs (progress tracking – added by trainer/gym).
+     */
+    public function dietLogsIndex(Request $request)
+    {
+        $member = $request->user();
+        $query = MemberDietLog::where('member_id', $member->id)
+            ->when($request->period_type, fn ($q, $t) => $q->where('period_type', $t))
+            ->when($request->from, fn ($q, $d) => $q->where('period_date', '>=', $d))
+            ->when($request->to, fn ($q, $d) => $q->where('period_date', '<=', $d))
+            ->orderBy('period_date', 'desc');
+        return $request->has('per_page') ? $query->paginate((int) $request->per_page ?: 20) : $query->limit(100)->get();
+    }
+
+    /**
+     * My exercise logs (progress tracking – added by trainer/gym).
+     */
+    public function exerciseLogsIndex(Request $request)
+    {
+        $member = $request->user();
+        $query = MemberExerciseLog::where('member_id', $member->id)
+            ->with('exercise')
+            ->when($request->log_date, fn ($q, $d) => $q->where('log_date', $d))
+            ->when($request->from, fn ($q, $d) => $q->where('log_date', '>=', $d))
+            ->when($request->to, fn ($q, $d) => $q->where('log_date', '<=', $d))
+            ->orderBy('log_date', 'desc')->orderBy('id', 'desc');
+        return $request->has('per_page') ? $query->paginate((int) $request->per_page ?: 50) : $query->limit(200)->get();
     }
 
     /**

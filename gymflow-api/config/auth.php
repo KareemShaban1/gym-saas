@@ -44,6 +44,10 @@ return [
             'driver' => 'sanctum',
             'provider' => 'members',
         ],
+        'trainer_api' => [
+            'driver' => 'sanctum',
+            'provider' => 'trainers',
+        ],
     ],
 
     /*
@@ -71,6 +75,10 @@ return [
         'members' => [
             'driver' => 'eloquent',
             'model' => App\Models\Member::class,
+        ],
+        'trainers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Trainer::class,
         ],
     ],
 

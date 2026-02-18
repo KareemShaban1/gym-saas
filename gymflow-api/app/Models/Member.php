@@ -70,4 +70,14 @@ class Member extends Authenticatable
     {
         return $this->hasMany(MemberMessage::class, 'member_id');
     }
+
+    public function dietLogs(): HasMany
+    {
+        return $this->hasMany(MemberDietLog::class, 'member_id');
+    }
+
+    public function exerciseLogs(): HasMany
+    {
+        return $this->hasMany(MemberExerciseLog::class, 'member_id');
+    }
 }

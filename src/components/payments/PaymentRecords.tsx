@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Plus, Search } from "lucide-react";
 import { Payment, PaymentCategory, PaymentMethod, paymentCategoryLabels, paymentMethodLabels } from "@/data/payments";
 import { format } from "date-fns";
@@ -37,6 +38,8 @@ const PaymentRecords = ({ payments, setPayments, members = [], onAddPayment }: P
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [form, setForm] = useState({
     memberId: "",
     memberName: "",
@@ -60,11 +63,26 @@ const PaymentRecords = ({ payments, setPayments, members = [], onAddPayment }: P
     setForm((f) => ({ ...f, memberId, planAmount: planPrice }));
   };
 
-  const filtered = payments.filter(p => {
-    const matchSearch = p.memberName.toLowerCase().includes(search.toLowerCase());
-    const matchCat = filterCategory === "all" || p.category === filterCategory;
-    return matchSearch && matchCat;
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filtered = useMemo(() => 
+    payments.filter(p => {
+      const matchSearch = p.memberName.toLowerCase().includes(search.toLowerCase());
+      const matchCat = filterCategory === "all" || p.category === filterCategory;
+      return matchSearch && matchCat;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [payments, search, filterCategory]
+  );
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterCategory]);
 
   const handleAdd = () => {
     if (useApi && onAddPayment) {
@@ -223,7 +241,7 @@ const PaymentRecords = ({ payments, setPayments, members = [], onAddPayment }: P
           </TableHeader>
           <TableBody>
             <AnimatePresence>
-              {filtered.map(p => (
+              {paginatedData.map(p => (
                 <motion.tr
                   key={p.id}
                   initial={{ opacity: 0 }}
@@ -243,11 +261,45 @@ const PaymentRecords = ({ payments, setPayments, members = [], onAddPayment }: P
                 </motion.tr>
               ))}
             </AnimatePresence>
-            {filtered.length === 0 && (
+            {paginatedData.length === 0 && (
               <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No payments found.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} payments
+            </div>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

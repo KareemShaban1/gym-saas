@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, ArrowLeft } from "lucide-react";
 import { useMemberAuth } from "@/contexts/MemberAuthContext";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const MemberLoginPage = () => {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ const MemberLoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useMemberAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +32,12 @@ const MemberLoginPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background p-4 safe-area-pb">
+      <div className="absolute top-4 left-4 sm:left-6">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          {t("backToHome")}
+        </Link>
+      </div>
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2">
@@ -38,8 +46,8 @@ const MemberLoginPage = () => {
             </div>
             <span className="font-display text-xl font-bold">GymFlow</span>
           </Link>
-          <h1 className="text-xl font-display font-bold mt-6">Member portal</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Sign in to check-in, view workouts & payments</p>
+          <h1 className="text-xl font-display font-bold mt-6">{t("memberPortal")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("landingMemberDesc")}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-sm">
           {error && (
@@ -71,11 +79,13 @@ const MemberLoginPage = () => {
             />
           </div>
           <Button type="submit" className="w-full h-11" variant="hero" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : t("signInGym")}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Gym staff? <Link to="/login" className="text-primary font-medium hover:underline">Dashboard login</Link>
+          {t("trainerPortal")} · <Link to="/trainer/login" className="text-primary font-medium hover:underline">{t("signInGym")}</Link>
+          {" · "}
+          {t("gymLogin")} · <Link to="/login" className="text-primary font-medium hover:underline">{t("signInGym")}</Link>
         </p>
       </div>
     </div>

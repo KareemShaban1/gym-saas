@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'role',
         'gym_id',
+        'role_id',
     ];
 
     /**
@@ -54,6 +55,23 @@ class User extends Authenticatable
         return $this->belongsTo(Gym::class);
     }
 
+    public function roleDefinition(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function hasPermission(string $slug): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if ($this->isGymAdmin() && ! $this->role_id) {
+            return true; // gym owner has all permissions
+        }
+        $role = $this->roleDefinition;
+        return $role ? $role->hasPermission($slug) : false;
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === 'super_admin';
@@ -62,5 +80,10 @@ class User extends Authenticatable
     public function isGymAdmin(): bool
     {
         return $this->role === 'gym_admin';
+    }
+
+    public function isGymStaff(): bool
+    {
+        return $this->role === 'gym_staff';
     }
 }

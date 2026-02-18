@@ -65,9 +65,12 @@ const PaymentsPage = () => {
   });
 
   const addExpenseMutation = useMutation({
-    mutationFn: (payload: { title: string; category: string; amount: number; date: string; note?: string }) =>
+    mutationFn: (payload: { title: string; category_id: number; amount: number; date: string; note?: string }) =>
       api.post<ApiExpense>("/expenses", payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
+    },
   });
 
   const { data: commissionsList = [] } = useQuery({
@@ -92,31 +95,48 @@ const PaymentsPage = () => {
     [paymentsList]
   );
 
-  const monthlyRevenue = useMemo(() => {
-    const byMonth: Record<string, { revenue: number }> = {};
-    payments.forEach((p) => {
-      const month = p.date.slice(0, 7);
-      if (!byMonth[month]) byMonth[month] = { revenue: 0 };
-      byMonth[month].revenue += p.amount;
-    });
-    return Object.entries(byMonth)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
-      .map(([month, v]) => ({ month, revenue: v.revenue, expenses: 0 }));
-  }, [payments]);
-
   const expenses: Expense[] = useMemo(
     () =>
       expensesList.map((e) => ({
         id: e.id,
         title: e.title,
-        category: e.category as Expense["category"],
+        categoryId: e.category_id ?? null,
+        categoryObj: e.category ? {
+          id: e.category.id,
+          name: e.category.name,
+          slug: e.category.slug,
+          color: e.category.color ?? null,
+        } : null,
+        category: e.category?.slug as Expense["category"] | undefined, // Legacy fallback
         amount: Number(e.amount),
         date: typeof e.date === "string" ? e.date.split("T")[0] : e.date,
         note: e.note ?? undefined,
       })),
     [expensesList]
   );
+
+  const monthlyRevenue = useMemo(() => {
+    const byMonth: Record<string, { revenue: number; expenses: number }> = {};
+    
+    // Calculate revenue by month
+    payments.forEach((p) => {
+      const month = p.date.slice(0, 7);
+      if (!byMonth[month]) byMonth[month] = { revenue: 0, expenses: 0 };
+      byMonth[month].revenue += p.amount;
+    });
+    
+    // Calculate expenses by month
+    expenses.forEach((e) => {
+      const month = e.date.slice(0, 7);
+      if (!byMonth[month]) byMonth[month] = { revenue: 0, expenses: 0 };
+      byMonth[month].expenses += e.amount;
+    });
+    
+    return Object.entries(byMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, v]) => ({ month, revenue: v.revenue, expenses: v.expenses }));
+  }, [payments, expenses]);
 
   const commissions: CommissionRecord[] = useMemo(
     () =>
@@ -188,7 +208,7 @@ const PaymentsPage = () => {
             expenses={expenses}
             onAddExpense={(payload) =>
               addExpenseMutation.mutate(
-                { title: payload.title, category: payload.category, amount: payload.amount, date: payload.date, note: payload.note },
+                { title: payload.title, category_id: payload.category_id, amount: payload.amount, date: payload.date, note: payload.note },
                 {
                   onSuccess: () => toast({ title: t("expensesTab"), description: "Expense recorded" }),
                   onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),

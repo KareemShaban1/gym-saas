@@ -14,7 +14,7 @@ class TrainerController extends Controller
     public function index(Request $request)
     {
         $gymId = $this->requireGymId($request);
-        $query = Trainer::where('gym_id', $gymId)
+        $query = Trainer::worksAtGym($gymId)
             ->with('branches')
             ->withCount('members')
             ->when($request->search, fn ($q, $search) => $q->where(function ($q) use ($search) {
@@ -59,22 +59,24 @@ class TrainerController extends Controller
         $validated['monthly_salary'] = $validated['monthly_salary'] ?? 0;
 
         $trainer = Trainer::create($validated);
+        $trainer->gyms()->syncWithoutDetaching([$gymId]);
         $this->syncBranchesForGym($trainer, $branchIds, $gymId);
 
-        return $trainer->load('branches');
+        return $trainer->load(['branches', 'gyms']);
     }
 
     public function show(Request $request, Trainer $trainer)
     {
-        if ($trainer->gym_id !== $this->requireGymId($request)) {
+        if (! $trainer->belongsToGym($this->requireGymId($request))) {
             abort(404);
         }
-        return $trainer->load(['branches'])->loadCount('members');
+        return $trainer->load(['branches', 'gyms'])->loadCount('members');
     }
 
     public function update(Request $request, Trainer $trainer)
     {
-        if ($trainer->gym_id !== $this->requireGymId($request)) {
+        $gymId = $this->requireGymId($request);
+        if (! $trainer->belongsToGym($gymId)) {
             abort(404);
         }
 
@@ -102,19 +104,47 @@ class TrainerController extends Controller
 
         $trainer->update($validated);
         if ($branchIds !== null) {
-            $this->syncBranchesForGym($trainer, $branchIds, $trainer->gym_id);
+            $this->syncBranchesForGym($trainer, $branchIds, $gymId);
         }
 
-        return $trainer->load('branches');
+        return $trainer->load(['branches', 'gyms']);
     }
 
     public function destroy(Request $request, Trainer $trainer)
     {
-        if ($trainer->gym_id !== $this->requireGymId($request)) {
+        $gymId = $this->requireGymId($request);
+        if (! $trainer->belongsToGym($gymId)) {
             abort(404);
         }
-        $trainer->delete();
-        return response()->json(['message' => 'Trainer deleted']);
+        // Detach this gym and its branches; delete trainer only if they have no other gyms
+        $trainer->gyms()->detach($gymId);
+        $branchIds = \App\Models\Branch::where('gym_id', $gymId)->pluck('id')->all();
+        $trainer->branches()->detach($branchIds);
+        if ($trainer->gym_id === $gymId) {
+            $trainer->update(['gym_id' => $trainer->gyms()->first()?->id]);
+        }
+        if ($trainer->gyms()->count() === 0 && $trainer->gym_id === null) {
+            $trainer->delete();
+        }
+        return response()->json(['message' => 'Trainer removed from gym']);
+    }
+
+    /** Invite an existing trainer (by email) to work at this gym. */
+    public function invite(Request $request)
+    {
+        $gymId = $this->requireGymId($request);
+        $validated = $request->validate(['email' => 'required|email|exists:trainers,email']);
+
+        $trainer = Trainer::where('email', $validated['email'])->first();
+        if ($trainer->belongsToGym($gymId)) {
+            return response()->json($trainer->load(['branches', 'gyms']), 200);
+        }
+
+        $trainer->gyms()->syncWithoutDetaching([$gymId]);
+        if ($trainer->gym_id === null) {
+            $trainer->update(['gym_id' => $gymId]);
+        }
+        return response()->json($trainer->load(['branches', 'gyms']), 201);
     }
 
     private function syncBranchesForGym(Trainer $trainer, array $branchIds, int $gymId): void

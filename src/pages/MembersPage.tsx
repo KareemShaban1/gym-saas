@@ -11,7 +11,8 @@ import MemberFormDialog from "@/components/members/MemberFormDialog";
 import MemberDetailSheet from "@/components/members/MemberDetailSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Eye, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -35,6 +36,7 @@ const MembersPage = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: membersData, isLoading: membersLoading } = useQuery({
     queryKey: ["members", search, statusFilter],
@@ -222,6 +224,7 @@ const MembersPage = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openDetail(member)}><Eye className="w-4 h-4 me-2" /> {t("view")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/members/${member.id}/progress`)}><TrendingUp className="w-4 h-4 me-2" /> Progress</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(member)}><Pencil className="w-4 h-4 me-2" /> {t("edit")}</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(member)}><Trash2 className="w-4 h-4 me-2" /> {t("remove")}</DropdownMenuItem>
                         </DropdownMenuContent>

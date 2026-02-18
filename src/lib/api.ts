@@ -105,5 +105,62 @@ class MemberApiClient {
   }
 }
 
+/** Trainer portal API (uses trainer_token, base path /trainer). */
+class TrainerApiClient {
+  private token: string | null = null;
+
+  constructor() {
+    this.token = localStorage.getItem("trainer_token");
+  }
+
+  setToken(token: string | null) {
+    this.token = token;
+    if (token) localStorage.setItem("trainer_token", token);
+    else localStorage.removeItem("trainer_token");
+  }
+
+  getToken() {
+    return this.token;
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    const url = `${API_BASE_URL}/trainer${path}`;
+    const isFormData = options.body instanceof FormData;
+    const headers: HeadersInit = {
+      Accept: "application/json",
+      ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(options.headers as Record<string, string>),
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.setToken(null);
+        window.location.href = "/trainer/login";
+      }
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "API request failed");
+    }
+    return response.json();
+  }
+
+  get<T>(endpoint: string) {
+    return this.request<T>(endpoint);
+  }
+  post<T>(endpoint: string, data?: unknown) {
+    const body = data instanceof FormData ? data : JSON.stringify(data ?? {});
+    return this.request<T>(endpoint, { method: "POST", body });
+  }
+  put<T>(endpoint: string, data: unknown) {
+    const body = data instanceof FormData ? data : JSON.stringify(data);
+    return this.request<T>(endpoint, { method: "PUT", body });
+  }
+  delete<T>(endpoint: string) {
+    return this.request<T>(endpoint, { method: "DELETE" });
+  }
+}
+
 export const api = new ApiClient();
 export const memberApi = new MemberApiClient();
+export const trainerApi = new TrainerApiClient();

@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
-import { Users, CreditCard, QrCode, TrendingUp, AlertTriangle, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, CreditCard, QrCode, TrendingUp, AlertTriangle, UserPlus, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { formatDistanceToNow } from "date-fns";
@@ -42,18 +45,28 @@ const HOURS = [6, 8, 10, 12, 14, 16, 18, 20];
 
 const DashboardOverview = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const hasGym = !!user?.gym_id || !!user?.gym;
+  const isSuperAdmin = user?.role === "super_admin" || (Array.isArray(user?.role) && user?.role?.includes("super_admin"));
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => api.get<DashboardStats>("/reports/dashboard"),
+    enabled: hasGym,
   });
 
-  const { data: membersResponse } = useQuery({
+  const { data: membersResponse, isError: membersError } = useQuery({
     queryKey: ["members", "recent"],
     queryFn: () => api.get<{ data: ApiMember[] }>("/members?per_page=5"),
+    enabled: hasGym,
   });
 
-  const recentMembers = (membersResponse && "data" in membersResponse ? membersResponse.data : []) as ApiMember[];
+  const rawMembers = membersResponse && typeof membersResponse === "object" && "data" in membersResponse
+    ? (membersResponse as { data: unknown }).data
+    : Array.isArray(membersResponse)
+      ? membersResponse
+      : [];
+  const recentMembers = Array.isArray(rawMembers) ? rawMembers : [];
 
   const revenueChange =
     stats && stats.revenue_previous_month > 0
@@ -64,12 +77,55 @@ const DashboardOverview = () => {
   const hourCounts = HOURS.map((h) => attendanceByHour.find((x) => x.hour === h)?.count ?? 0);
   const maxHourCount = Math.max(...hourCounts, 1);
 
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 bg-background">
+          <h1 className="text-xl font-display font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground animate-pulse">Loading…</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!isSuperAdmin && !hasGym) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4 bg-background">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+            <Building2 className="w-8 h-8 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-display font-bold text-foreground">No gym assigned</h2>
+            <p className="text-muted-foreground mt-1 max-w-sm">
+              Your account is not linked to a gym. Register a gym to access the dashboard.
+            </p>
+          </div>
+          <Link to="/register-gym">
+            <Button variant="hero" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              Register your gym
+            </Button>
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold mb-1">{t("dashboardOverview")}</h1>
-        <p className="text-muted-foreground">{t("welcomeBack")}</p>
+      <div className="mb-8" data-page="dashboard-overview">
+        <h1 className="text-2xl font-display font-bold mb-1 text-foreground">
+          {t("dashboardOverview") || "Dashboard Overview"}
+        </h1>
+        <p className="text-muted-foreground">{t("welcomeBack") || "Welcome back!"}</p>
       </div>
+
+      {hasGym && (statsError || membersError) && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          {t("errorLoadingDashboard") || "Some dashboard data could not be loaded. You may need to link your account to a gym."}
+        </div>
+      )}
 
       {statsLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

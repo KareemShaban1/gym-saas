@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireSuperAdmin }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isSuperAdmin } = useAuth();
+  const { user, isAuthenticated, isLoading, isSuperAdmin } = useAuth();
   const location = useLocation();
   const isDashboardRoute = location.pathname.startsWith("/dashboard");
 
@@ -26,6 +26,10 @@ export default function ProtectedRoute({ children, requireSuperAdmin }: Protecte
   }
   if (isDashboardRoute && isSuperAdmin) {
     return <Navigate to="/super-admin" replace />;
+  }
+  // Gym dashboard routes require a gym; redirect to overview which shows "No gym assigned" if needed
+  if (isDashboardRoute && !isSuperAdmin && !location.pathname.startsWith("/super-admin") && !user?.gym_id && !user?.gym) {
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }

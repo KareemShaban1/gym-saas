@@ -221,14 +221,27 @@ export interface ApiGymPlan {
   sort_order: number;
 }
 
+export interface ApiExpenseCategory {
+  id: number;
+  gym_id: number;
+  name: string;
+  slug: string;
+  color?: string | null;
+  description?: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
 export interface ApiExpense {
   id: number;
   gym_id: number;
+  category_id?: number | null;
   title: string;
-  category: string;
+  category?: string; // Legacy support
   amount: number | string;
   date: string;
   note?: string | null;
+  category?: ApiExpenseCategory | null;
 }
 
 export interface ApiCommission {

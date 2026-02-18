@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   LayoutDashboard, Users, Dumbbell, CreditCard, QrCode,
   BarChart3, Settings, ChevronLeft, LogOut, Building2, UserCog, Ticket,
-  Sun, Moon, Monitor, Languages
+  Sun, Moon, Monitor, Languages, UserPlus, Shield
 } from "lucide-react";
 import {
   Select,
@@ -33,6 +33,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     { icon: BarChart3, label: t("reports"), path: "/dashboard/reports" },
     { icon: Building2, label: t("branches"), path: "/dashboard/branches" },
     { icon: Ticket, label: t("subscriptionPlans"), path: "/dashboard/plans" },
+    { icon: UserPlus, label: t("dashboardUsers"), path: "/dashboard/users" },
+    { icon: Shield, label: t("rolesAndPermissions"), path: "/dashboard/roles" },
     { icon: Settings, label: t("settings"), path: "/dashboard/settings" },
   ];
 
@@ -152,7 +154,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             </Button>
           </div>
         </header>
-        <div className="flex-1 p-6 lg:p-8">
+        <div className="flex-1 p-6 lg:p-8 min-h-[60vh] min-w-0 overflow-auto bg-background">
           {children}
         </div>
       </main>
