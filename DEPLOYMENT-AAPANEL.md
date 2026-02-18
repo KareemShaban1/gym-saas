@@ -312,6 +312,7 @@ No need to change aaPanel site roots; both sites keep pointing at the same repo.
 - **API calls fail from frontend**: Confirm `VITE_API_URL` used at build time, CORS origin, and that both sites use HTTPS if the frontend is HTTPS.
 - **Routes not found (404)**: Ensure document root is `public` and Nginx has `try_files $uri $uri/ /index.php?$query_string;` for the API site.
 - **"Expected a JavaScript module script but the server responded with a MIME type of application/octet-stream"**: The frontend site is serving `.js`/`.mjs` with the wrong MIME type. Fix it by adding MIME types for the **frontend** site in aaPanel (see below).
+- **POST /api/trainer/login (or /api/member/login, /api/login) returns 404**: The request is hitting the frontend site instead of Laravel. See **"Trainer / API login 404"** below.
 
 ---
 
@@ -353,3 +354,105 @@ types {
 Then **reload Nginx** (aaPanel: Nginx → Reload, or run `nginx -s reload`).
 
 Replace `yourdomain.com` and `api.yourdomain.com` with your real domains everywhere.
+
+---
+
+## Trainer / API login 404 (POST /api/trainer/login returns 404)
+
+If the frontend calls `https://gym.kareemsoft.org/api/trainer/login` (same domain as the app) and gets **404**, the browser is sending the request to the **frontend** site. That site only serves the SPA (e.g. from `dist/`), so `/api/*` does not exist there and Nginx (or the SPA) returns 404.
+
+You have two ways to fix it.
+
+### Option A: Use a separate API subdomain (recommended)
+
+1. **Create a second site in aaPanel** for the API:
+   - Domain: `api.gym.kareemsoft.org`
+   - Site root: `/www/wwwroot/gym.kareemsoft.org/gymflow-api`
+   - Run directory: `public`
+   - PHP: 8.2
+
+2. **Point DNS**: Add an A record for `api.gym.kareemsoft.org` to your server IP.
+
+3. **Rebuild the frontend** so it uses the API subdomain:
+   ```bash
+   cd /www/wwwroot/gym.kareemsoft.org
+   export VITE_API_URL=https://api.gym.kareemsoft.org/api
+   npm run build
+   ```
+
+4. Enable SSL for `api.gym.kareemsoft.org` in aaPanel.
+
+After this, trainer login will go to `https://api.gym.kareemsoft.org/api/trainer/login`, which is served by Laravel.
+
+### Option B: Same domain – proxy /api to Laravel
+
+If you want **one domain** (e.g. `https://gym.kareemsoft.org`) for both frontend and API:
+
+1. **Create the API site in aaPanel** (same as Option A) so Laravel is working at least on a subdomain or port, e.g. `api.gym.kareemsoft.org` or an internal URL.
+
+2. **Edit Nginx for the main domain** (`gym.kareemsoft.org`). Add a `location /api` block that **proxies** to the Laravel backend (your API site’s upstream or URL). In aaPanel: **Website → gym.kareemsoft.org → Set up → Config file**:
+
+```nginx
+# Upstream for Laravel (use the same PHP/backend as your API site)
+upstream laravel_backend {
+    server unix:/tmp/php-cgi-82.sock;   # or 127.0.0.1:9000 if PHP-FPM listens on port
+}
+
+server {
+    server_name gym.kareemsoft.org;
+    root /www/wwwroot/gym.kareemsoft.org/dist;
+    index index.html;
+    include mime.types;
+
+    # Proxy /api to Laravel
+    location /api {
+        rewrite ^/api/(.*)$ /api/$1 break;
+        fastcgi_pass laravel_backend;
+        fastcgi_param SCRIPT_FILENAME /www/wwwroot/gym.kareemsoft.org/gymflow-api/public/index.php;
+        include fastcgi_params;
+        fastcgi_param REQUEST_URI $request_uri;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    # ... SSL, etc.
+}
+```
+
+Config details (path, PHP socket) must match your server. **Option A (API subdomain)** is usually easier and avoids this.
+
+3. **Rebuild frontend** with API on the same domain:
+   ```bash
+   export VITE_API_URL=https://gym.kareemsoft.org/api
+   npm run build
+   ```
+
+**Summary:** 404 on `POST /api/trainer/login` means the request is not handled by Laravel. Use **Option A** (API subdomain, e.g. `api.gym.kareemsoft.org`) or **Option B** (proxy `/api` on the same domain) so `/api/*` is served by Laravel.
+
+---
+
+## Trainer login 404 but dashboard works (same domain)
+
+If **gym admin login** (e.g. `POST /api/login`) and other API calls work, but **trainer login** (`POST /api/trainer/login`) returns 404, Laravel is receiving `/api` but the **trainer route may not be registered** on the server (e.g. old route cache or code not deployed).
+
+**On the server, run these in the Laravel directory** (`/www/wwwroot/gym.kareemsoft.org/gymflow-api`):
+
+```bash
+cd /www/wwwroot/gym.kareemsoft.org/gymflow-api
+
+# 1. Clear caches so routes are loaded from files
+php artisan route:clear
+php artisan config:clear
+
+# 2. Confirm the trainer route is listed (look for "trainer/login")
+php artisan route:list --path=api
+
+# 3. If you see "api/trainer/login" in the list, cache again for production
+php artisan config:cache
+php artisan route:cache
+```
+
+- If **`route:list` does NOT show `api/trainer/login`**: pull the latest code (or ensure `routes/api.php` and `app/Http/Controllers/Api/TrainerAuthController.php` exist), then run the commands again.
+- If **`route:list` shows `api/trainer/login`** but the browser still gets 404: the request may not be reaching Laravel for that path. Check Nginx: the `location /api` block must pass the full URI (e.g. `REQUEST_URI=/api/trainer/login`) to Laravel; avoid rewrites that change the path.
+- Check Laravel log when you try trainer login: `tail -f storage/logs/laravel.log`.

@@ -27,12 +27,13 @@ use App\Http\Controllers\Api\SuperAdmin\AnnouncementController as SuperAdminAnno
 use App\Http\Controllers\Api\MemberAuthController;
 use App\Http\Controllers\Api\MemberPortalController;
 use App\Http\Controllers\Api\MemberPortalPasswordController;
+use App\Http\Controllers\Api\TrainerAuthController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/member/login', [MemberAuthController::class, 'login']);
-Route::post('/trainer/login', [App\Http\Controllers\Api\TrainerAuthController::class, 'login']);
-Route::post('/trainer/register', [App\Http\Controllers\Api\TrainerAuthController::class, 'register']);
+Route::post('/trainer/login', [TrainerAuthController::class, 'login']);
+Route::post('/trainer/register', [TrainerAuthController::class, 'register']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register-gym', [AuthController::class, 'registerGym']);
 
@@ -121,8 +122,8 @@ Route::middleware(['auth:member_api'])->prefix('member')->group(function () {
 
 // Trainer portal (personal or gym trainer – auth:trainer_api)
 Route::middleware(['auth:trainer_api'])->prefix('trainer')->group(function () {
-    Route::post('/logout', [App\Http\Controllers\Api\TrainerAuthController::class, 'logout']);
-    Route::get('/me', [App\Http\Controllers\Api\TrainerAuthController::class, 'me']);
+    Route::post('/logout', [TrainerAuthController::class, 'logout']);
+    Route::get('/me', [TrainerAuthController::class, 'me']);
 
     Route::get('/members', [App\Http\Controllers\Api\TrainerPortalController::class, 'membersIndex']);
     Route::post('/members', [App\Http\Controllers\Api\TrainerPortalController::class, 'membersStore']);
